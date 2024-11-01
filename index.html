@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supermercado</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        form { margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+    <h1>Gerenciamento de Produtos</h1>
+
+    <h2>Adicionar Categoria</h2>
+    <form id="categoriaForm">
+        <input type="text" id="nomeCategoria" placeholder="Nome da Categoria" required>
+        <button type="submit">Adicionar Categoria</button>
+    </form>
+
+    <h2>Adicionar Produto</h2>
+    <form id="produtoForm">
+        <input type="text" id="nome" placeholder="Nome do Produto" required>
+        <input type="number" id="preco" placeholder="Preço" required>
+        <input type="number" id="quantidade" placeholder="Quantidade" required>
+        <select id="categoria" required>
+            <option value="">Selecione uma Categoria</option>
+        </select>
+        <button type="submit">Adicionar Produto</button>
+    </form>
+
+    <h2>Filtrar Produtos por Categoria</h2>
+    <select id="filterCategoria">
+        <option value="">Todas as Categorias</option>
+    </select>
+    <button onclick="filterProdutos()">Filtrar</button>
+
+    <table id="produtosTable">
+        <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Preço</th>
+                <th>Quantidade</th>
+                <th>Categoria</th>
+                <th>Ações</th>
+            </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+
+    <script>
+        document.getElementById('categoriaForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('nomeCategoria').value;
+
+            const response = await fetch('http://localhost:3000/categorias', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome })
+            });
+
+            if (response.ok) {
+                loadCategorias();
+                document.getElementById('categoriaForm').reset();
+            }
+        });
+
+        document.getElementById('produtoForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const nome = document.getElementById('nome').value;
+            const preco = document.getElementById('preco').value;
+            const quantidade = document.getElementById('quantidade').value;
+            const categoria = document.getElementById('categoria').value;
+
+            const response = await fetch('http://localhost:3000/produtos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome, preco, quantidade, categoria })
+            });
+
+            if (response.ok) {
+                const produto = await response.json();
+                addProdutoToTable(produto);
+                document.getElementById('produtoForm').reset();
+            }
+        });
+
+        async function loadCategorias() {
+            const response = await fetch('http://localhost:3000/categorias');
+            const categorias = await response.json();
+            const select = document.getElementById('categoria');
+            const filterSelect = document.getElementById('filterCategoria');
+            select.innerHTML = '';
+            filterSelect.innerHTML = '<option value="">Todas as Categorias</option>'; // reset filter
+
+            categorias.forEach(categoria => {
+                const option = document.createElement('option');
+                option.value = categoria._id;
+                option.textContent = categoria.nome;
+                select.appendChild(option);
+
+                const filterOption = document.createElement('option');
+                filterOption.value = categoria._id;
+                filterOption.textContent = categoria.nome;
+                filterSelect.appendChild(filterOption);
+            });
+        }
+
+        async function loadProdutos() {
+            const response = await fetch('http://localhost:3000/produtos');
+            const produtos = await response.json();
+            produtos.forEach(addProdutoToTable);
+        }
+
+        function addProdutoToTable(produto) {
+            const table = document.getElementById('produtosTable').getElementsByTagName('tbody')[0];
+            const row = table.insertRow();
+            row.insertCell(0).innerText = produto.nome;
+            row.insertCell(1).innerText = produto.preco;
+            row.insertCell(2).innerText = produto.quantidade;
+            row.insertCell(3).innerText = produto.categoria.nome;
+            const actionsCell = row.insertCell(4);
+            actionsCell.innerHTML = `<button onclick="deleteProduto('${produto._id}')">Excluir</button>
+                                     <button onclick="editProduto('${produto._id}')">Editar</button>`;
+        }
+
+        async function filterProdutos() {
+            const categoriaId = document.getElementById('filterCategoria').value;
+            const url = categoriaId ? `http://localhost:3000/produtos?categoria=${categoriaId}` : 'http://localhost:3000/produtos';
+            const response = await fetch(url);
+            const produtos = await response.json();
+            const tbody = document.getElementById('produtosTable').getElementsByTagName('tbody')[0];
+            tbody.innerHTML = ''; // Limpar tabela antes
